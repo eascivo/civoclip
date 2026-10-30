@@ -1,11 +1,16 @@
 export const DAY = 86_400;
 export interface EntitlementClaims {
   iss: 'civoclip-license'; aud: 'civoclip-desktop'; sub: string; tier: 'pro';
-  iat: number; exp: number; licenseExpiresAt: number; device: string;
+  iat: number; exp: number; licenseExpiresAt: number; updatesUntil: number; device: string;
   features: string[];
 }
 const verified = Symbol('verified entitlement');
-export interface VerifiedEntitlement extends EntitlementClaims { readonly [verified]: true; readonly offlineExpiresAt: number }
+export interface VerifiedEntitlement extends EntitlementClaims {
+  readonly [verified]: true;
+  /** Activation/verification freshness deadline; never a Pro feature deadline. */
+  readonly offlineExpiresAt: number;
+  readonly fresh: boolean;
+}
 export type PublicKeys = Readonly<Record<string, JsonWebKey>>;
 // Public-only RFC 8032 fixture, deliberately unusable for production trust.
 // Replace this development kid with provisioned production PUBLIC keys before release.
@@ -35,14 +40,14 @@ export async function verifyEntitlement(token: string, options: {
   const c = json(p) as EntitlementClaims;
   if (c.iss !== 'civoclip-license' || c.aud !== 'civoclip-desktop' || c.tier !== 'pro' || typeof c.sub !== 'string' || !c.sub ||
       typeof c.device !== 'string' || !c.device || !Array.isArray(c.features) || !c.features.every(f => typeof f === 'string') ||
-      ![c.iat,c.exp,c.licenseExpiresAt].every(Number.isSafeInteger) || c.iat > now || c.exp <= c.iat ||
-      now >= Math.min(c.exp, c.licenseExpiresAt, c.iat + grace * DAY) ||
-      (options.device !== undefined && options.device !== c.device)) throw new Error('Expired or invalid entitlement');
-  return Object.freeze({ ...c, offlineExpiresAt: Math.min(c.exp, c.licenseExpiresAt, c.iat + grace * DAY), features: Object.freeze([...c.features]) as unknown as string[], [verified]: true as const });
+      ![c.iat,c.exp,c.licenseExpiresAt,c.updatesUntil].every(Number.isSafeInteger) || c.iat > now || c.exp <= c.iat || c.updatesUntil < c.iat ||
+      (options.device !== undefined && options.device !== c.device)) throw new Error('Invalid entitlement');
+  const offlineExpiresAt = Math.min(c.exp, c.licenseExpiresAt, c.iat + grace * DAY);
+  return Object.freeze({ ...c, offlineExpiresAt, fresh: now < offlineExpiresAt, features: Object.freeze([...c.features]) as unknown as string[], [verified]: true as const });
 }
 export type Access = { tier: 'free'; reason: string } | { tier: 'pro'; entitlement: VerifiedEntitlement };
 export async function evaluateAccess(token: string | undefined, options: Parameters<typeof verifyEntitlement>[1] = {}): Promise<Access> {
   if (!token) return { tier: 'free', reason: 'No entitlement' };
   try { return { tier: 'pro', entitlement: await verifyEntitlement(token, options) }; }
-  catch { return { tier: 'free', reason: 'Entitlement unavailable or expired; open-source features remain available' }; }
+  catch { return { tier: 'free', reason: 'Entitlement unavailable or invalid; open-source features remain available' }; }
 }

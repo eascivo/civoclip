@@ -13,11 +13,20 @@ packaging time; the embedded development fixture is PUBLIC ONLY, must be removed
 before release, and is not a production trust anchor. Tests generate fresh keypairs.
 The server's raw private key is never part of this repository.
 
-Offline Pro expires at the earliest of token `exp`, license end, or `iat` plus
-`offlineGraceDays` (21 by default, configurable 14–30). Expiration, missing keys,
-invalid signatures and failed verification yield free access; OSS is never blocked.
+Every token requires a signed `updatesUntil` claim (Unix seconds, safe integer,
+at least `iat`). Pro builds released on or before that date remain usable forever;
+license expiry only stops updates. The Pro package checks the build's fixed release
+date against `updatesUntil`, independently of the current clock.
+
+`offlineExpiresAt` is the earliest of token `exp`, `licenseExpiresAt`, or `iat` plus
+`offlineGraceDays` (21 by default, configurable 14–30). It only controls freshness:
+`entitlement.fresh` is false at or after this deadline, indicating a refresh is
+needed. Signature-valid cached tokens still yield Pro access for eligible builds.
+Activation/refresh responses must be fresh before replacing the cache. Missing
+tokens/keys, invalid signatures, wrong issuer/audience/device, or malformed claims
+yield free access; OSS is never blocked.
 Network errors preserve a previously valid cache; server 401/403/404 clears it.
-Revocation while offline takes effect on refresh or at this bounded expiry.
+Offline revocation takes effect when a server response clears the cache.
 A host desktop app must securely persist tokens and prevent local clock rollback;
 this skeleton intentionally provides no UI, disk storage or anti-tamper guarantees.
 
