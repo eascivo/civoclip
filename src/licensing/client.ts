@@ -32,6 +32,7 @@ export class HttpLicenseClient implements LicenseClient {
     if (typeof result.token !== 'string') throw new Error('Missing entitlement token');
     const access = await evaluateAccess(result.token, { keys: this.options.keys, offlineGraceDays: this.options.offlineGraceDays, now: this.options.now?.(), device: await deviceHash(device.device_fingerprint) });
     if (access.tier !== 'pro') throw new Error('Server returned an invalid entitlement');
+    if (!access.entitlement.fresh) throw new Error('Server returned a stale entitlement');
     this.token = result.token;
     return result.token;
   }
