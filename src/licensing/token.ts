@@ -1,7 +1,8 @@
 export const DAY = 86_400;
 export interface EntitlementClaims {
   iss: 'civoclip-license'; aud: 'civoclip-desktop'; sub: string; tier: 'pro';
-  iat: number; exp: number; licenseExpiresAt: number; updatesUntil: number; device: string;
+  licenseType: 'lifetime' | 'perpetual_1y_updates';
+  iat: number; exp: number; licenseExpiresAt: number; updatesUntil?: number; device: string;
   features: string[];
 }
 const verified = Symbol('verified entitlement');
@@ -40,8 +41,13 @@ export async function verifyEntitlement(token: string, options: {
   const c = json(p) as EntitlementClaims;
   if (c.iss !== 'civoclip-license' || c.aud !== 'civoclip-desktop' || c.tier !== 'pro' || typeof c.sub !== 'string' || !c.sub ||
       typeof c.device !== 'string' || !c.device || !Array.isArray(c.features) || !c.features.every(f => typeof f === 'string') ||
-      ![c.iat,c.exp,c.licenseExpiresAt,c.updatesUntil].every(Number.isSafeInteger) || c.iat > now || c.exp <= c.iat || c.updatesUntil < c.iat ||
+      ![c.iat,c.exp,c.licenseExpiresAt].every(Number.isSafeInteger) || c.iat > now || c.exp <= c.iat ||
       (options.device !== undefined && options.device !== c.device)) throw new Error('Invalid entitlement');
+  if (c.licenseType === 'lifetime') {
+    if (Object.hasOwn(c, 'updatesUntil')) throw new Error('Invalid entitlement');
+  } else if (c.licenseType === 'perpetual_1y_updates') {
+    if (c.updatesUntil === undefined || !Number.isSafeInteger(c.updatesUntil) || c.updatesUntil < c.iat) throw new Error('Invalid entitlement');
+  } else throw new Error('Invalid entitlement');
   const offlineExpiresAt = Math.min(c.exp, c.licenseExpiresAt, c.iat + grace * DAY);
   return Object.freeze({ ...c, offlineExpiresAt, fresh: now < offlineExpiresAt, features: Object.freeze([...c.features]) as unknown as string[], [verified]: true as const });
 }

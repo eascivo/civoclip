@@ -1,6 +1,5 @@
 # Civoclip core
 Apache-2.0 open-source skeleton for cross-language highlight clipping and localization.
-Civoclip website: https://clip.eascivo.com.
 
 Node 22: `npm install && npm test && npm run build`. No media engine is bundled;
 typed ingest, transcribe, translate, highlight-detect and clip/export stubs throw
@@ -13,10 +12,16 @@ packaging time; the embedded development fixture is PUBLIC ONLY, must be removed
 before release, and is not a production trust anchor. Tests generate fresh keypairs.
 The server's raw private key is never part of this repository.
 
-Every token requires a signed `updatesUntil` claim (Unix seconds, safe integer,
-at least `iat`). Pro builds released on or before that date remain usable forever;
-license expiry only stops updates. The Pro package checks the build's fixed release
-date against `updatesUntil`, independently of the current clock.
+Every token requires a signed `licenseType` claim:
+
+- `lifetime`: updates forever, with no `updatesUntil` claim. Including that claim
+  makes the token malformed. Pro is allowed for any build release date.
+- `perpetual_1y_updates`: requires signed `updatesUntil` (Unix seconds, safe integer,
+  at least `iat`). Pro builds released on or before that cutoff remain usable forever.
+
+Missing or unknown `licenseType` is invalid and yields free access. Neither type
+loses Pro on expiry. The Pro package checks the build's fixed release date against
+update coverage, independently of the current clock and token freshness.
 
 `offlineExpiresAt` is the earliest of token `exp`, `licenseExpiresAt`, or `iat` plus
 `offlineGraceDays` (21 by default, configurable 14–30). It only controls freshness:

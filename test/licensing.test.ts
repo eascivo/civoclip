@@ -2,7 +2,7 @@ import {beforeAll,describe,it,expect,vi} from 'vitest';
 import {DAY,verifyEntitlement,evaluateAccess,deviceHash,HttpLicenseClient,isLicenseKey,pipeline,PipelineNotImplemented,type EntitlementClaims} from '../src/index.js';
 const now=1_800_000_000; let privateKey:CryptoKey;let publicJwk:JsonWebKey;
 const b64=(value:string|Uint8Array)=>Buffer.from(value).toString('base64url');
-const claims=():EntitlementClaims=>({iss:'civoclip-license',aud:'civoclip-desktop',sub:'license-test',tier:'pro',iat:now,exp:now+30*DAY,licenseExpiresAt:now+365*DAY,updatesUntil:now+365*DAY,device:'hash',features:['batch-export']});
+const claims=():EntitlementClaims=>({iss:'civoclip-license',aud:'civoclip-desktop',sub:'license-test',tier:'pro',licenseType:'perpetual_1y_updates',iat:now,exp:now+30*DAY,licenseExpiresAt:now+365*DAY,updatesUntil:now+365*DAY,device:'hash',features:['batch-export']});
 async function sign(c:object=claims(),header:object={alg:'EdDSA',typ:'JWT',kid:'test-rotation'}){
  const h=b64(JSON.stringify(header)),p=b64(JSON.stringify(c));return `${h}.${p}.${b64(new Uint8Array(await crypto.subtle.sign('Ed25519',privateKey,new TextEncoder().encode(`${h}.${p}`))))}`;
 }
@@ -36,7 +36,24 @@ describe('Ed25519 entitlement',()=>{
   const token=await sign({...claims(),exp:now+DAY,licenseExpiresAt:now+2*DAY,updatesUntil:now+2*DAY});
   expect(await verifyEntitlement(token,{...options(),now:now+400*DAY})).toMatchObject({tier:'pro',fresh:false,updatesUntil:now+2*DAY});
  });
- it.each([undefined,null,'1800000000',now-1,now+0.5,Number.MAX_SAFE_INTEGER+1])('rejects malformed or missing updatesUntil %s',async updatesUntil=>{
+ it('keeps lifetime Pro without updatesUntil after all freshness deadlines',async()=>{
+  const token=await sign({...claims(),licenseType:'lifetime',updatesUntil:undefined});
+  expect(await evaluateAccess(token,options())).toMatchObject({tier:'pro',entitlement:{licenseType:'lifetime',fresh:true}});
+  const access=await evaluateAccess(token,{...options(),now:now+400*DAY});
+  expect(access).toMatchObject({tier:'pro',entitlement:{licenseType:'lifetime',fresh:false}});
+  if(access.tier==='pro')expect(access.entitlement).not.toHaveProperty('updatesUntil');
+ });
+ it.each([now,null,'1800000000'])('rejects lifetime with updatesUntil %s',async updatesUntil=>{
+  const token=await sign({...claims(),licenseType:'lifetime',updatesUntil});
+  await expect(verifyEntitlement(token,options())).rejects.toThrow();
+  expect((await evaluateAccess(token,options())).tier).toBe('free');
+ });
+ it.each([undefined,null,'unknown','Lifetime'])('rejects missing or unknown licenseType %s',async licenseType=>{
+  const token=await sign({...claims(),licenseType});
+  await expect(verifyEntitlement(token,options())).rejects.toThrow();
+  expect((await evaluateAccess(token,options())).tier).toBe('free');
+ });
+ it.each([undefined,null,'1800000000',now-1,now+0.5,Number.MAX_SAFE_INTEGER+1])('rejects perpetual_1y_updates with malformed or missing updatesUntil %s',async updatesUntil=>{
   const token=await sign({...claims(),updatesUntil});
   await expect(verifyEntitlement(token,options())).rejects.toThrow();
   expect((await evaluateAccess(token,options())).tier).toBe('free');
