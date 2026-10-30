@@ -1,6 +1,6 @@
-# Clip core
+# Civoclip core
 Apache-2.0 open-source skeleton for cross-language highlight clipping and localization.
-Clip is a placeholder name (possibly ClipSnap); website: https://clip.eascivo.com.
+Civoclip website: https://clip.eascivo.com.
 
 Node 22: `npm install && npm test && npm run build`. No media engine is bundled;
 typed ingest, transcribe, translate, highlight-detect and clip/export stubs throw
@@ -21,6 +21,7 @@ Revocation while offline takes effect on refresh or at this bounded expiry.
 A host desktop app must securely persist tokens and prevent local clock rollback;
 this skeleton intentionally provides no UI, disk storage or anti-tamper guarantees.
 
+The legacy `CLIP-` prefix is retained after the product rename.
 License format: `CLIP-XXXX-XXXX-XXXX-XXXX`, uppercase RFC4648 base32 (80 random bits).
-Pro lives separately in `../clip-pro`; web/commerce code in `../clip-web`.
+Pro lives separately in `../civoclip-pro`; web/commerce code in `../civoclip-website`.
 See CONTRIBUTING.md for DCO and TRADEMARK.md for name/logo restrictions.

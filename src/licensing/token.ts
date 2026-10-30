@@ -1,6 +1,6 @@
 export const DAY = 86_400;
 export interface EntitlementClaims {
-  iss: 'clip-license'; aud: 'clip-desktop'; sub: string; tier: 'pro';
+  iss: 'civoclip-license'; aud: 'civoclip-desktop'; sub: string; tier: 'pro';
   iat: number; exp: number; licenseExpiresAt: number; device: string;
   features: string[];
 }
@@ -33,7 +33,7 @@ export async function verifyEntitlement(token: string, options: {
   const key = await crypto.subtle.importKey('jwk', keys[header.kid]!, { name: 'Ed25519' }, false, ['verify']);
   if (!await crypto.subtle.verify('Ed25519', key, bytes(s), new TextEncoder().encode(`${h}.${p}`))) throw new Error('Invalid signature');
   const c = json(p) as EntitlementClaims;
-  if (c.iss !== 'clip-license' || c.aud !== 'clip-desktop' || c.tier !== 'pro' || typeof c.sub !== 'string' || !c.sub ||
+  if (c.iss !== 'civoclip-license' || c.aud !== 'civoclip-desktop' || c.tier !== 'pro' || typeof c.sub !== 'string' || !c.sub ||
       typeof c.device !== 'string' || !c.device || !Array.isArray(c.features) || !c.features.every(f => typeof f === 'string') ||
       ![c.iat,c.exp,c.licenseExpiresAt].every(Number.isSafeInteger) || c.iat > now || c.exp <= c.iat ||
       now >= Math.min(c.exp, c.licenseExpiresAt, c.iat + grace * DAY) ||

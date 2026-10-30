@@ -2,7 +2,7 @@ import {beforeAll,describe,it,expect,vi} from 'vitest';
 import {DAY,verifyEntitlement,evaluateAccess,deviceHash,HttpLicenseClient,isLicenseKey,pipeline,PipelineNotImplemented,type EntitlementClaims} from '../src/index.js';
 const now=1_800_000_000; let privateKey:CryptoKey;let publicJwk:JsonWebKey;
 const b64=(value:string|Uint8Array)=>Buffer.from(value).toString('base64url');
-const claims=():EntitlementClaims=>({iss:'clip-license',aud:'clip-desktop',sub:'license-test',tier:'pro',iat:now,exp:now+30*DAY,licenseExpiresAt:now+365*DAY,device:'hash',features:['batch-export']});
+const claims=():EntitlementClaims=>({iss:'civoclip-license',aud:'civoclip-desktop',sub:'license-test',tier:'pro',iat:now,exp:now+30*DAY,licenseExpiresAt:now+365*DAY,device:'hash',features:['batch-export']});
 async function sign(c:object=claims(),header:object={alg:'EdDSA',typ:'JWT',kid:'test-rotation'}){
  const h=b64(JSON.stringify(header)),p=b64(JSON.stringify(c));return `${h}.${p}.${b64(new Uint8Array(await crypto.subtle.sign('Ed25519',privateKey,new TextEncoder().encode(`${h}.${p}`))))}`;
 }
